@@ -1,6 +1,7 @@
 .git
 .agents
 .claude
+.codex
 **/__pycache__
 **/.pytest_cache
 **/node_modules

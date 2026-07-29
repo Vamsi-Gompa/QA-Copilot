@@ -1,0 +1,15 @@
+{
+    "agent": {
+        "name": "codex",
+        "mode": "workspace"
+    },
+    "workspace": {
+        "defaultBranch": "main",
+        "preferRepositoryInstructions": true,
+        "ignoreLocalArtifacts": true
+    },
+    "development": {
+        "backendCommand": "python -m uvicorn main:app --host 127.0.0.1 --port 8001",
+        "frontendCommand": "npm run dev"
+    }
+}
