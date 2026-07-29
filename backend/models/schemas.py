@@ -279,6 +279,32 @@ class LifecycleRepositoryRequest(BaseModel):
     target_branch: str = "feature/agentic-sdlc"
 
 
+class LifecycleClarificationRequest(BaseModel):
+    answer: str
+    actor: str = "Architect"
+
+
+class LifecycleBrdRevisionRequest(BaseModel):
+    section_name: str
+    content: str
+    actor: str = "Architect"
+    comment: str = ""
+
+
+class LifecycleIssueCreate(BaseModel):
+    issue_type: str = "Story"
+    summary: str
+    description: str = ""
+    status: str = "Backlog"
+    priority: str = "Medium"
+    assignee: str = "Unassigned"
+    story_points: int = 0
+    sprint: str = ""
+    parent_key: str = ""
+    dependencies: List[str] = []
+    acceptance_criteria: List[str] = []
+
+
 class AgentEvent(BaseModel):
     type: str
     content: str

@@ -313,6 +313,7 @@ export interface Lifecycle {
     version: number; status: string; approved_by: string; approved_at: string | null;
     sections: Array<{ name: string; content: string; confidence: number }>;
   };
+  brd_history?: Array<Record<string, any>>;
   issues: LifecycleIssue[];
   sprint_plan: Record<string, any>;
   code_plan: Record<string, any>;

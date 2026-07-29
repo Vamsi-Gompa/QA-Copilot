@@ -139,6 +139,14 @@ export const lifecycleApi = {
     api.post<Lifecycle>(`/lifecycles/${id}/run/${stage}`).then(r => r.data),
   updateIssue: (id: string, key: string, patch: Record<string, unknown>) =>
     api.patch<Lifecycle>(`/lifecycles/${id}/issues/${key}`, patch).then(r => r.data),
+  createIssue: (id: string, body: Record<string, unknown>) =>
+    api.post<Lifecycle>(`/lifecycles/${id}/issues`, body).then(r => r.data),
+  deleteIssue: (id: string, key: string) =>
+    api.delete<Lifecycle>(`/lifecycles/${id}/issues/${key}`).then(r => r.data),
+  answerClarification: (id: string, index: number, answer: string, actor = 'Architect') =>
+    api.patch<Lifecycle>(`/lifecycles/${id}/clarifications/${index}`, { answer, actor }).then(r => r.data),
+  reviseBrd: (id: string, section_name: string, content: string, comment = '', actor = 'Architect') =>
+    api.post<Lifecycle>(`/lifecycles/${id}/brd/revisions`, { section_name, content, comment, actor }).then(r => r.data),
   configureRepository: (id: string, repository: string, base_branch: string, target_branch: string) =>
     api.post<Lifecycle>(`/lifecycles/${id}/repository`, { repository, base_branch, target_branch }).then(r => r.data),
 };

@@ -4,7 +4,7 @@ The PoC deliberately uses template generation so the complete demo works without
 an external model.  The artifacts are persisted and may later be enriched by an
 Ollama-backed agent without changing the API contract.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 import uuid
 
@@ -15,6 +15,9 @@ from models.schemas import (
     LifecycleGateRequest,
     LifecycleIssueUpdate,
     LifecycleRepositoryRequest,
+    LifecycleClarificationRequest,
+    LifecycleBrdRevisionRequest,
+    LifecycleIssueCreate,
 )
 from services import storage
 
@@ -34,7 +37,7 @@ STAGES = [
 
 
 def _now() -> str:
-    return datetime.utcnow().isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _slug(value: str) -> str:
@@ -264,6 +267,105 @@ async def update_issue(lifecycle_id: str, issue_key: str, body: LifecycleIssueUp
         raise HTTPException(404, "Issue not found")
     issue.update({k: v for k, v in body.model_dump().items() if v is not None})
     return _save(item, "Plan Agent", f"{issue_key} updated.")
+
+
+@router.post("/{lifecycle_id}/issues")
+async def create_issue(lifecycle_id: str, body: LifecycleIssueCreate):
+    item = _get_or_404(lifecycle_id)
+    issue_type = body.issue_type.title()
+    if issue_type not in ("Epic", "Story", "Subtask", "Defect"):
+        raise HTTPException(400, "Issue type must be Epic, Story, Subtask, or Defect")
+    next_number = max(
+        [int(x["key"].rsplit("-", 1)[-1]) for x in item["issues"] if x["key"].rsplit("-", 1)[-1].isdigit()],
+        default=0,
+    ) + 1
+    key = f"{item['project_key']}-{next_number}"
+    issue = _issue(
+        key, issue_type, body.summary, body.description or body.summary,
+        status=body.status, priority=body.priority, assignee=body.assignee,
+        story_points=body.story_points, sprint=body.sprint,
+        parent_key=body.parent_key, dependencies=body.dependencies,
+        acceptance_criteria=body.acceptance_criteria,
+    )
+    item["issues"].append(issue)
+    item["lineage"].append({"from": "REQ-1", "to": key, "type": "decomposes_to"})
+    return _save(item, "Plan Agent", f"{key} created.")
+
+
+@router.delete("/{lifecycle_id}/issues/{issue_key}")
+async def delete_issue(lifecycle_id: str, issue_key: str):
+    item = _get_or_404(lifecycle_id)
+    if not any(x["key"] == issue_key for x in item["issues"]):
+        raise HTTPException(404, "Issue not found")
+    if any(x.get("parent_key") == issue_key for x in item["issues"]):
+        raise HTTPException(409, "Move or delete child issues before deleting their parent")
+    item["issues"] = [x for x in item["issues"] if x["key"] != issue_key]
+    item["lineage"] = [x for x in item["lineage"] if x["from"] != issue_key and x["to"] != issue_key]
+    return _save(item, "Plan Agent", f"{issue_key} deleted.")
+
+
+@router.patch("/{lifecycle_id}/clarifications/{question_index}")
+async def answer_clarification(
+    lifecycle_id: str, question_index: int, body: LifecycleClarificationRequest
+):
+    item = _get_or_404(lifecycle_id)
+    questions = item.get("clarifications", [])
+    if question_index < 0 or question_index >= len(questions):
+        raise HTTPException(404, "Clarification question not found")
+    if not body.answer.strip():
+        raise HTTPException(400, "Clarification answer is required")
+    questions[question_index].update({
+        "answer": body.answer.strip(), "status": "answered",
+        "answered_by": body.actor, "answered_at": _now(),
+    })
+    item["requirement"]["assumptions"].append(
+        f"Clarified by {body.actor}: {body.answer.strip()}"
+    )
+    item["requirement"]["open_questions"] = [
+        q["question"] for q in questions if q["status"] != "answered"
+    ]
+    return _save(item, body.actor, f"Clarification {question_index + 1} answered.")
+
+
+@router.post("/{lifecycle_id}/brd/revisions")
+async def revise_brd(lifecycle_id: str, body: LifecycleBrdRevisionRequest):
+    item = _get_or_404(lifecycle_id)
+    if not body.section_name.strip() or not body.content.strip():
+        raise HTTPException(400, "Section name and content are required")
+    previous = {
+        "version": item["brd"]["version"],
+        "status": item["brd"]["status"],
+        "sections": [dict(section) for section in item["brd"]["sections"]],
+        "approved_by": item["brd"].get("approved_by", ""),
+        "approved_at": item["brd"].get("approved_at"),
+    }
+    item.setdefault("brd_history", []).append(previous)
+    section = next(
+        (x for x in item["brd"]["sections"] if x["name"].lower() == body.section_name.strip().lower()),
+        None,
+    )
+    if section:
+        section.update({"content": body.content.strip(), "confidence": 1.0})
+    else:
+        item["brd"]["sections"].append({
+            "name": body.section_name.strip(), "content": body.content.strip(), "confidence": 1.0,
+        })
+    item["brd"].update({
+        "version": item["brd"]["version"] + 1,
+        "status": "Draft",
+        "approved_by": "",
+        "approved_at": None,
+    })
+    item["stages"]["brd"]["status"] = "approval_required"
+    item["current_stage"] = "brd"
+    item["status"] = "In discovery"
+    item["lineage"].append({
+        "from": "REQ-1", "to": f"BRD-v{item['brd']['version']}", "type": "revises",
+    })
+    message = f"BRD revised to v{item['brd']['version']}: {body.section_name.strip()}."
+    if body.comment:
+        message += f" {body.comment.strip()}"
+    return _save(item, body.actor, message)
 
 
 @router.post("/{lifecycle_id}/gates/{gate}")

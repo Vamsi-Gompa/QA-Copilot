@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { lifecycleApi } from '../services/api';
 import type { Lifecycle, LifecycleIssue } from '../types';
 
@@ -107,7 +108,16 @@ export default function LifecycleWorkspace() {
   };
   const action = async (name: string, request: () => Promise<Lifecycle>) => {
     setBusy(name); setError('');
-    try { refresh(await request()); } catch (e: any) { setError(e?.response?.data?.detail || e.message); }
+    try {
+      const item = await request();
+      refresh(item);
+      if (name === 'implementation') {
+        localStorage.setItem('qa_active_development_job', item.implementation.development_job_id || item.id);
+        localStorage.setItem('qa_github_source_path', item.repository.repo || '');
+        localStorage.setItem('qa_github_source_branch', item.repository.target_branch || item.code_plan.branch || 'feature/agentic-sdlc');
+        localStorage.setItem('qa_github_base_branch', item.repository.base_branch || 'main');
+      }
+    } catch (e: any) { setError(e?.response?.data?.detail || e.message); }
     finally { setBusy(''); }
   };
   const move = (issue: LifecycleIssue, status: string) => action(issue.key, () => lifecycleApi.updateIssue(current!.id, issue.key, { status }));
@@ -158,7 +168,7 @@ export default function LifecycleWorkspace() {
         }}>{x}</button>)}
       </div>
 
-      {tab === 'Board' && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(180px, 1fr))', gap: 10, overflowX: 'auto', paddingBottom: 10 }}>
+      {tab === 'Board' && <><IssueComposer current={current} refresh={refresh} /><div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(180px, 1fr))', gap: 10, overflowX: 'auto', paddingBottom: 10 }}>
         {COLUMNS.map(column => <div key={column} onDragOver={e => e.preventDefault()} onDrop={e => {
           const issue = current.issues.find(x => x.key === e.dataTransfer.getData('issue')); if (issue) move(issue, column);
         }} style={{ ...panel, minWidth: 180, padding: 10 }}>
@@ -167,7 +177,7 @@ export default function LifecycleWorkspace() {
           </div>
           {grouped[column].map((issue: LifecycleIssue) => <IssueCard key={issue.key} issue={issue} move={move} />)}
         </div>)}
-      </div>}
+      </div></>}
 
       {tab === 'Requirement' && <div style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 14 }}>
         <div style={{ ...panel, padding: 18 }}>
@@ -185,17 +195,17 @@ export default function LifecycleWorkspace() {
               <div style={{ color: 'var(--text-1)', fontSize: 12 }}>{x.name}</div><div style={{ color: 'var(--text-3)', fontSize: 10 }}>{x.type} · {Math.round(x.relevance * 100)}% relevance</div>
             </div>)}
           </div>
-          <div style={{ ...panel, padding: 16 }}>
-            <h3 style={{ color: 'var(--text-1)', marginTop: 0 }}>Clarification loop</h3>
-            {current.clarifications.map((x, i) => <div key={i} style={{ color: 'var(--text-2)', fontSize: 12, padding: '7px 0' }}>? {x.question}</div>)}
-          </div>
+          <ClarificationPanel current={current} refresh={refresh} />
         </div>
       </div>}
 
       {tab === 'BRD' && <div style={{ ...panel, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div><h2 style={{ color: 'var(--text-1)', margin: 0 }}>Business Requirements Document</h2><span style={{ color: 'var(--text-3)', fontSize: 11 }}>Version {current.brd.version} · {current.brd.status}</span></div>
-          {current.brd.status !== 'Approved' && <button style={primary} disabled={busy === 'brd'} onClick={() => approve('brd')}>Architect approve BRD</button>}
+          <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+            <BrdRevision current={current} refresh={refresh} />
+            {current.brd.status !== 'Approved' && <button style={primary} disabled={busy === 'brd'} onClick={() => approve('brd')}>Architect approve BRD</button>}
+          </div>
         </div>
         {current.brd.sections.map(section => <div key={section.name} style={{ padding: '16px 0', borderBottom: '1px solid var(--border-faint)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}><strong style={{ color: 'var(--text-1)', fontSize: 13 }}>{section.name}</strong><Badge color={section.confidence > .9 ? '#00875A' : '#FF991F'}>{Math.round(section.confidence * 100)}% confidence</Badge></div>
@@ -249,6 +259,7 @@ export default function LifecycleWorkspace() {
 }
 
 function RepositoryCard({ current, refresh }: { current: Lifecycle; refresh: (item: Lifecycle) => void }) {
+  const navigate = useNavigate();
   const [repo, setRepo] = useState(current.repository.repo || '');
   const [base, setBase] = useState(current.repository.base_branch || 'main');
   const [branch, setBranch] = useState(current.repository.target_branch || 'feature/agentic-sdlc');
@@ -261,6 +272,77 @@ function RepositoryCard({ current, refresh }: { current: Lifecycle; refresh: (it
       <label style={{ color: 'var(--text-3)', fontSize: 10 }}>Feature branch<input style={{ ...input, marginTop: 5 }} value={branch} onChange={e => setBranch(e.target.value)} /></label>
     </div>
     <button style={{ ...primary, marginTop: 12 }} disabled={busy || !repo} onClick={async () => { setBusy(true); try { refresh(await lifecycleApi.configureRepository(current.id, repo, base, branch)); } finally { setBusy(false); } }}>Save repository target</button>
-    <p style={{ color: 'var(--text-3)', fontSize: 10, lineHeight: 1.5 }}>Branch creation, commit, push and pull request use the existing GitHub Push workspace after a token is configured. Generated files are already linked to this lifecycle job.</p>
+    {current.implementation.status === 'Generated' && <button style={{ ...primary, marginTop: 12, marginLeft: 8, background: '#00875A' }} onClick={() => {
+      localStorage.setItem('qa_active_development_job', current.implementation.development_job_id || current.id);
+      localStorage.setItem('qa_github_source_path', repo);
+      localStorage.setItem('qa_github_source_branch', branch);
+      localStorage.setItem('qa_github_base_branch', base);
+      navigate('/github');
+    }}>Create branch, commit & PR</button>}
+    <p style={{ color: 'var(--text-3)', fontSize: 10, lineHeight: 1.5 }}>The Git delivery step can create a missing repository, create the feature branch, commit generated files, push, and open a pull request after a repository token is supplied.</p>
+  </div>;
+}
+
+function ClarificationPanel({ current, refresh }: { current: Lifecycle; refresh: (item: Lifecycle) => void }) {
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState<number | null>(null);
+  return <div style={{ ...panel, padding: 16 }}>
+    <h3 style={{ color: 'var(--text-1)', marginTop: 0 }}>Clarification loop</h3>
+    {current.clarifications.map((item, index) => <div key={index} style={{ padding: '9px 0', borderBottom: '1px solid var(--border-faint)' }}>
+      <div style={{ color: 'var(--text-2)', fontSize: 12 }}>? {item.question}</div>
+      {item.status === 'answered' ? <div style={{ color: '#00875A', fontSize: 11, marginTop: 5 }}>✓ {item.answer}</div> :
+        <div style={{ display: 'flex', gap: 6, marginTop: 7 }}>
+          <input style={input} value={answers[index] || ''} onChange={e => setAnswers(x => ({ ...x, [index]: e.target.value }))} placeholder="Architect answer" />
+          <button style={primary} disabled={busy === index || !(answers[index] || '').trim()} onClick={async () => {
+            setBusy(index);
+            try { refresh(await lifecycleApi.answerClarification(current.id, index, answers[index])); }
+            finally { setBusy(null); }
+          }}>Record</button>
+        </div>}
+    </div>)}
+  </div>;
+}
+
+function BrdRevision({ current, refresh }: { current: Lifecycle; refresh: (item: Lifecycle) => void }) {
+  const [open, setOpen] = useState(false);
+  const [section, setSection] = useState('Functional scope');
+  const [content, setContent] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (!open) return <button style={{ ...primary, background: 'var(--control-bg)', color: 'var(--text-1)', border: '1px solid var(--border-dim)' }} onClick={() => setOpen(true)}>Revise BRD</button>;
+  return <div style={{ display: 'flex', gap: 5 }}>
+    <input aria-label="BRD section" style={{ ...input, width: 145 }} value={section} onChange={e => setSection(e.target.value)} />
+    <input aria-label="BRD revision content" style={{ ...input, width: 230 }} value={content} onChange={e => setContent(e.target.value)} placeholder="Revised content" />
+    <button style={primary} disabled={busy || !content.trim()} onClick={async () => {
+      setBusy(true);
+      try { refresh(await lifecycleApi.reviseBrd(current.id, section, content, 'Human-authored revision')); setOpen(false); setContent(''); }
+      finally { setBusy(false); }
+    }}>Save v{current.brd.version + 1}</button>
+  </div>;
+}
+
+function IssueComposer({ current, refresh }: { current: Lifecycle; refresh: (item: Lifecycle) => void }) {
+  const [open, setOpen] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [type, setType] = useState('Story');
+  const [points, setPoints] = useState(3);
+  const [busy, setBusy] = useState(false);
+  return <div style={{ ...panel, padding: 10, marginBottom: 10 }}>
+    {!open ? <button style={primary} onClick={() => setOpen(true)}>+ Create issue</button> :
+      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 90px auto auto', gap: 7 }}>
+        <select aria-label="Issue type" style={input} value={type} onChange={e => setType(e.target.value)}>{['Epic', 'Story', 'Subtask', 'Defect'].map(x => <option key={x}>{x}</option>)}</select>
+        <input aria-label="Issue summary" style={input} value={summary} onChange={e => setSummary(e.target.value)} placeholder="Issue summary" />
+        <input aria-label="Story points" style={input} type="number" min={0} max={13} value={points} onChange={e => setPoints(Number(e.target.value))} />
+        <button style={primary} disabled={busy || !summary.trim()} onClick={async () => {
+          setBusy(true);
+          try {
+            refresh(await lifecycleApi.createIssue(current.id, {
+              issue_type: type, summary, description: summary, story_points: points,
+              sprint: current.sprint_plan.name, status: 'Backlog',
+            }));
+            setSummary(''); setOpen(false);
+          } finally { setBusy(false); }
+        }}>Create</button>
+        <button style={{ ...primary, background: 'var(--control-bg)', color: 'var(--text-2)' }} onClick={() => setOpen(false)}>Cancel</button>
+      </div>}
   </div>;
 }
