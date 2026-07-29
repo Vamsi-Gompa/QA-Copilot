@@ -63,13 +63,32 @@ async def patch_test(test_id: str, body: TestUpdateRequest):
 @router.post("/generate")
 async def start_generation(body: TestGenerationRequest):
     stories_map = storage.get_stories()
+    feature = body.custom_feature or {}
+    feature_requested = bool(feature.get("title") or feature.get("description"))
     if body.story_ids:
         stories = [s for sid, s in stories_map.items() if sid in body.story_ids]
+    elif feature_requested:
+        stories = []
     else:
         stories = list(stories_map.values())
 
+    if feature.get("title") and feature.get("description"):
+        criteria = feature.get("acceptance_criteria") or []
+        if isinstance(criteria, str):
+            criteria = [line.strip() for line in criteria.splitlines() if line.strip()]
+        stories.append({
+            "id": f"custom-feature-{uuid.uuid4()}",
+            "project_name": feature.get("project_name") or "Existing repository",
+            "title": str(feature["title"]).strip(),
+            "description": str(feature["description"]).strip(),
+            "acceptance_criteria": criteria,
+            "priority": feature.get("priority") or "high",
+            "status": "ready",
+            "references": [body.path_or_url or body.github_url or ""],
+        })
+
     if not stories:
-        raise HTTPException(400, "No user stories found. Upload stories first.")
+        raise HTTPException(400, "Select a user story or describe a custom feature to develop.")
 
     job_id = str(uuid.uuid4())
     options = body.model_dump()
@@ -82,6 +101,7 @@ async def start_generation(body: TestGenerationRequest):
         "id": job_id,
         "status": "running",
         "story_ids": [s["id"] for s in stories],
+        "stories": stories,
         "test_count": 0,
         "options": options,
         "development_job_id": job_id if body.develop_code else None,
@@ -253,7 +273,7 @@ async def stream_generation(job_id: str):
 
     stories_map   = storage.get_stories()
     story_ids     = job.get("story_ids", list(stories_map.keys()))
-    stories_raw   = [v for k, v in stories_map.items() if k in story_ids]
+    stories_raw   = job.get("stories") or [v for k, v in stories_map.items() if k in story_ids]
 
     from models.schemas import UserStory
     stories = [UserStory(**s) for s in stories_raw]

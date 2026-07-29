@@ -146,11 +146,13 @@ class TestUpdateRequest(BaseModel):
 
 class TestGenerationRequest(BaseModel):
     story_ids: List[str] = []
+    custom_feature: Dict[str, Any] = {}
     workflow_mode: str = "develop_test"       # "develop_test" | "only_test"
     source_type: str = "synced"               # "synced" | "local" | "git"
     path_or_url: Optional[str] = None
     github_url: Optional[str] = None
     branch: str = "main"
+    target_branch: str = "feature/ai-developed-code"
     app_url: str = "http://localhost:3000"
     develop_code: bool = False
     tech_stack: Dict[str, str] = {}
@@ -242,6 +244,39 @@ class GitHubRepoPlanRequest(BaseModel):
     repo: Optional[str] = None
     path_or_url: Optional[str] = None
     branch: str = "feature/ai-developed-code"
+
+
+class LifecycleCreateRequest(BaseModel):
+    """Start one traceable requirement-to-release lifecycle."""
+    title: str
+    requirement_text: str
+    project_key: str = "SDLC"
+    source_name: str = "Pasted requirement"
+    sprint_name: str = "Sprint 1"
+    repository: str = ""
+    base_branch: str = "main"
+
+
+class LifecycleGateRequest(BaseModel):
+    decision: str = "approved"  # approved | changes_requested
+    comment: str = ""
+    actor: str = "Architect"
+
+
+class LifecycleIssueUpdate(BaseModel):
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    assignee: Optional[str] = None
+    story_points: Optional[int] = None
+    sprint: Optional[str] = None
+
+
+class LifecycleRepositoryRequest(BaseModel):
+    repository: str
+    base_branch: str = "main"
+    target_branch: str = "feature/agentic-sdlc"
 
 
 class AgentEvent(BaseModel):

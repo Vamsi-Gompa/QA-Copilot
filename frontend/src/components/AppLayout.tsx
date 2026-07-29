@@ -12,6 +12,7 @@ const NAV: Array<{
   isNew?: boolean;
 }> = [
   { id: 'dashboard',  label: 'Dashboard',      path: '/',          icon: 'dashboardApp',      color: '#00BFB3' },
+  { id: 'lifecycle',  label: 'SDLC Workspace', path: '/lifecycle', icon: 'visTimeline',       color: '#6554C0', isNew: true },
   { id: 'stories',    label: 'User Stories',    path: '/stories',   icon: 'document',          color: '#79AAD9' },
   // { id: 'codebase',   label: 'Sync Codebase',   path: '/codebase',  icon: 'branchUser',        color: '#A987D1' },
   { id: 'generate',   label: 'Develop & Test',  path: '/generate',  icon: 'beaker',            color: '#F1D86F' },
@@ -56,8 +57,8 @@ export default function AppLayout({ children, theme, onToggleTheme }: Props) {
               <QaIcon type="beaker" size="m" color="#00BFB3" />
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.2 }}>AI QA Copilot</div>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 500, letterSpacing: '0.04em' }}>Provider-configurable AI</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.2 }}>Atlas SDLC Copilot</div>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 500, letterSpacing: '0.04em' }}>Requirement to release</div>
             </div>
           </div>
           {/* Gradient line */}
@@ -144,7 +145,7 @@ export default function AppLayout({ children, theme, onToggleTheme }: Props) {
         <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border-faint)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00BFB3', boxShadow: '0 0 6px rgba(0,191,179,0.8)', animation: 'pulseGlow 2s infinite' }} />
-            <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 500 }}>Agentic Test Generation</span>
+            <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 500 }}>11 coordinated agents</span>
           </div>
         </div>
       </aside>

@@ -8,6 +8,7 @@ httpx==0.28.0
 gitpython==3.1.43
 pytest==8.3.3
 pytest-asyncio==0.24.0
+pytest-cov==5.0.0
 requests==2.32.3
 selenium>=4.20.0          # required to execute generated UI/Selenium tests
 playwright>=1.45.0        # required to execute generated UI/Playwright tests

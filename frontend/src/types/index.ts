@@ -94,11 +94,18 @@ export interface GeneratedTest {
 
 export interface TestGenerationOptions {
   story_ids: string[];
+  custom_feature: {
+    title: string;
+    description: string;
+    acceptance_criteria: string[];
+    project_name?: string;
+  };
   workflow_mode: 'develop_test' | 'only_test';
   source_type: 'synced' | 'local' | 'git';
   path_or_url?: string;
   github_url?: string;
   branch?: string;
+  target_branch?: string;
   app_url: string;
   develop_code: boolean;
   tech_stack: Record<string, string>;
@@ -137,6 +144,7 @@ export interface DevelopmentArtifact {
   source_type: string;
   path_or_url: string;
   branch: string;
+  target_branch?: string;
   save_target: string;
   last_saved_local?: string;
   last_saved_files?: string[];
@@ -268,6 +276,55 @@ export interface TestPatch {
   priority?: TestPriority;
   tags?: string[];
   status?: TestStatus;
+}
+
+export type LifecycleStageStatus = 'waiting' | 'ready' | 'approval_required' | 'completed';
+
+export interface LifecycleIssue {
+  id: string;
+  key: string;
+  type: 'Epic' | 'Story' | 'Subtask' | 'Defect';
+  summary: string;
+  description: string;
+  status: 'Backlog' | 'Selected' | 'In Progress' | 'Review' | 'Done';
+  priority: string;
+  assignee: string;
+  story_points: number;
+  sprint: string;
+  parent_key: string;
+  dependencies: string[];
+  acceptance_criteria: string[];
+  requirement_refs: string[];
+}
+
+export interface Lifecycle {
+  id: string;
+  project_key: string;
+  title: string;
+  status: string;
+  current_stage: string;
+  created_at: string;
+  updated_at: string;
+  model: { provider: string; local: boolean; external_api_key_required: boolean };
+  requirement: Record<string, any>;
+  context_pack: Record<string, any>;
+  clarifications: Array<{ question: string; answer: string; status: string }>;
+  brd: {
+    version: number; status: string; approved_by: string; approved_at: string | null;
+    sections: Array<{ name: string; content: string; confidence: number }>;
+  };
+  issues: LifecycleIssue[];
+  sprint_plan: Record<string, any>;
+  code_plan: Record<string, any>;
+  implementation: Record<string, any>;
+  review: Record<string, any>;
+  sanity: Record<string, any>;
+  release: Record<string, any>;
+  repository: Record<string, string>;
+  stages: Record<string, { status: LifecycleStageStatus; updated_at: string }>;
+  approvals: Array<Record<string, string>>;
+  lineage: Array<{ from: string; to: string; type: string }>;
+  activity: Array<{ at: string; actor: string; message: string }>;
 }
 
 export const CATEGORY_META: Record<TestCategory, { label: string; color: string; bg: string }> = {

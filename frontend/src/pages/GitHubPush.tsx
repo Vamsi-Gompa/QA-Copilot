@@ -26,6 +26,7 @@ import type { DevelopmentArtifact, DevelopmentFile, GitHubRepoPlan } from '../ty
 const ACTIVE_DEV_JOB_KEY = 'qa_active_development_job';
 const GITHUB_SOURCE_KEY = 'qa_github_source_path';
 const GITHUB_BRANCH_KEY = 'qa_github_source_branch';
+const GITHUB_BASE_BRANCH_KEY = 'qa_github_base_branch';
 const DEFAULT_CODE_BRANCH = 'feature/ai-developed-code';
 
 function ShipMetric({ label, value, color }: { label: string; value: React.ReactNode; color: string }) {
@@ -61,7 +62,7 @@ export default function GitHubPush() {
   const [sourcePath, setSourcePath] = useState(() => localStorage.getItem(GITHUB_SOURCE_KEY) || '');
   const [repo, setRepo] = useState('');
   const [branch, setBranch] = useState(() => localStorage.getItem(GITHUB_BRANCH_KEY) || DEFAULT_CODE_BRANCH);
-  const [baseBranch, setBaseBranch] = useState('main');
+  const [baseBranch, setBaseBranch] = useState(() => localStorage.getItem(GITHUB_BASE_BRANCH_KEY) || 'main');
   const [createRepo, setCreateRepo] = useState(false);
   const [prTitle, setPrTitle] = useState('feat: Add AI-developed story implementation');
   const [createPr, setCreatePr] = useState(true);
@@ -77,11 +78,13 @@ export default function GitHubPush() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const savedTargetBranch = localStorage.getItem(GITHUB_BRANCH_KEY);
+    const savedBaseBranch = localStorage.getItem(GITHUB_BASE_BRANCH_KEY);
     githubApi.getConfig().then(cfg => {
       if (cfg?.repo) {
         setRepo(cfg.repo);
-        setBranch(cfg.branch || DEFAULT_CODE_BRANCH);
-        setBaseBranch(cfg.base_branch || 'main');
+        if (!savedTargetBranch) setBranch(cfg.branch || DEFAULT_CODE_BRANCH);
+        if (!savedBaseBranch) setBaseBranch(cfg.base_branch || 'main');
         setCreateRepo(Boolean(cfg.create_repo));
         setConfigured(true);
       }
@@ -94,7 +97,8 @@ export default function GitHubPush() {
         .then(artifact => {
           setDevelopmentArtifact(artifact);
           setSourcePath(prev => prev || artifact.path_or_url || '');
-          setBranch(prev => prev || artifact.branch || DEFAULT_CODE_BRANCH);
+          setBranch(prev => prev || artifact.target_branch || DEFAULT_CODE_BRANCH);
+          setBaseBranch(current => current || artifact.branch || 'main');
         })
         .catch(() => {});
     }
@@ -138,13 +142,14 @@ export default function GitHubPush() {
       setCreateRepo(plan.create_repo);
       localStorage.setItem(GITHUB_SOURCE_KEY, sourcePath || plan.source_path || '');
       localStorage.setItem(GITHUB_BRANCH_KEY, plan.target_branch || branch);
+      localStorage.setItem(GITHUB_BASE_BRANCH_KEY, plan.default_branch || baseBranch);
       setConfigured(false);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Repository scan failed');
     } finally {
       setPlanning(false);
     }
-  }, [branch, repo, sourcePath, token]);
+  }, [baseBranch, branch, repo, sourcePath, token]);
 
   const handleConfigure = async () => {
     if (!token || !repo || !branch) return false;
@@ -156,6 +161,9 @@ export default function GitHubPush() {
         create_repo: createRepo,
       });
       setConfigured(true);
+      localStorage.setItem(GITHUB_SOURCE_KEY, sourcePath);
+      localStorage.setItem(GITHUB_BRANCH_KEY, branch);
+      localStorage.setItem(GITHUB_BASE_BRANCH_KEY, baseBranch || 'main');
       return true;
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Configuration failed');
@@ -279,7 +287,7 @@ export default function GitHubPush() {
               </EuiFormRow>
             </EuiFlexItem>
             <EuiFlexItem style={{ minWidth: 190 }}>
-              <EuiFormRow label="Existing branch">
+              <EuiFormRow label="Target branch">
                 <EuiSelect
                   value={branch}
                   options={branchOptions.length ? branchOptions : [{ value: branch, text: branch }]}
@@ -288,7 +296,7 @@ export default function GitHubPush() {
               </EuiFormRow>
             </EuiFlexItem>
             <EuiFlexItem style={{ minWidth: 230 }}>
-              <EuiFormRow label="Create or target branch">
+              <EuiFormRow label="Feature branch">
                 <EuiFieldText
                   value={branch}
                   onChange={e => { setBranch(e.target.value); setConfigured(false); }}
@@ -297,7 +305,7 @@ export default function GitHubPush() {
               </EuiFormRow>
             </EuiFlexItem>
             <EuiFlexItem style={{ minWidth: 160 }}>
-              <EuiFormRow label="Base branch">
+              <EuiFormRow label="Base branch" helpText="Feature branch is created from this branch">
                 <EuiFieldText value={baseBranch} onChange={e => { setBaseBranch(e.target.value); setConfigured(false); }} />
               </EuiFormRow>
             </EuiFlexItem>

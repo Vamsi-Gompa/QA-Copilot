@@ -41,14 +41,16 @@ const ACTIVE_DEV_JOB_KEY = 'qa_active_development_job';
 const APP_URL_KEY = 'qa_app_url';
 const GITHUB_SOURCE_KEY = 'qa_github_source_path';
 const GITHUB_BRANCH_KEY = 'qa_github_source_branch';
+const GITHUB_BASE_BRANCH_KEY = 'qa_github_base_branch';
 
 const priorityRank: Record<TestPriority, number> = { high: 0, medium: 1, low: 2 };
 
 const STACK_PRESETS = [
-  { id: 'react-fastapi', label: 'React + FastAPI', frontend: 'React', backend: 'FastAPI', database: 'PostgreSQL or SQLite' },
-  { id: 'react-node', label: 'React + Node', frontend: 'React', backend: 'Node.js / Express', database: 'MongoDB or PostgreSQL' },
-  { id: 'angular-spring', label: 'Angular + Spring', frontend: 'Angular', backend: 'Spring Boot', database: 'PostgreSQL' },
-  { id: 'custom', label: 'Custom stack', frontend: '', backend: '', database: '' },
+  { id: 'next-postgres', label: 'Next.js Full Stack', popularity: 'Most popular', frontend: 'Next.js + TypeScript', backend: 'Next.js API routes', database: 'PostgreSQL + Prisma', description: 'A modern TypeScript stack for product teams shipping web apps quickly.' },
+  { id: 'react-node', label: 'React + Node', popularity: 'Popular', frontend: 'React + TypeScript', backend: 'Node.js + Express', database: 'PostgreSQL', description: 'A flexible JavaScript stack with a mature package ecosystem.' },
+  { id: 'react-fastapi', label: 'React + FastAPI', popularity: 'Popular for AI', frontend: 'React + TypeScript', backend: 'Python + FastAPI', database: 'PostgreSQL', description: 'A strong fit for data, automation, and AI-enabled applications.' },
+  { id: 'angular-spring', label: 'Angular + Spring', popularity: 'Enterprise', frontend: 'Angular', backend: 'Java + Spring Boot', database: 'PostgreSQL', description: 'A structured stack for large teams and enterprise applications.' },
+  { id: 'custom', label: 'Custom tech stack', popularity: 'Build your own', frontend: '', backend: '', database: '', description: 'Specify the exact frontend, backend, and data technologies to use.' },
 ] as const;
 
 function loadSet(key: string) {
@@ -280,11 +282,15 @@ export default function GenerateTests() {
   const [sourceType, setSourceType] = useState<SourceType>('synced');
   const [codebasePath, setCodebasePath] = useState('');
   const [branch, setBranch] = useState('main');
+  const [targetBranch, setTargetBranch] = useState('feature/custom-feature');
+  const [featureTitle, setFeatureTitle] = useState('');
+  const [featureDescription, setFeatureDescription] = useState('');
+  const [featureAcceptance, setFeatureAcceptance] = useState('');
   const [appUrl, setAppUrl] = useState(() => localStorage.getItem(APP_URL_KEY) || 'http://localhost:3000');
-  const [stackPreset, setStackPreset] = useState<(typeof STACK_PRESETS)[number]['id']>('react-fastapi');
-  const [frontendStack, setFrontendStack] = useState('React');
-  const [backendStack, setBackendStack] = useState('FastAPI');
-  const [databaseStack, setDatabaseStack] = useState('');
+  const [stackPreset, setStackPreset] = useState<(typeof STACK_PRESETS)[number]['id']>('next-postgres');
+  const [frontendStack, setFrontendStack] = useState('Next.js + TypeScript');
+  const [backendStack, setBackendStack] = useState('Next.js API routes');
+  const [databaseStack, setDatabaseStack] = useState('PostgreSQL + Prisma');
   const [uiTestCount, setUiTestCount] = useState(5);
   const [backendTestCount, setBackendTestCount] = useState(5);
   const [customScenarios, setCustomScenarios] = useState('');
@@ -329,6 +335,10 @@ export default function GenerateTests() {
     sourceType,
     codebasePath,
     branch,
+    targetBranch,
+    featureTitle,
+    featureDescription,
+    featureAcceptance,
     appUrl,
     frontendStack,
     backendStack,
@@ -412,8 +422,9 @@ export default function GenerateTests() {
   };
 
   const generateSelectedStories = async (approved = stackApproved) => {
-    if (!selectedStoryIds.size) {
-      setError('Select at least one user story before generating tests.');
+    const hasCustomFeature = sourceType === 'git' && Boolean(featureTitle.trim() && featureDescription.trim());
+    if (!selectedStoryIds.size && !hasCustomFeature) {
+      setError('Select a user story or describe a custom feature to develop.');
       return;
     }
     if (!approved) {
@@ -426,6 +437,10 @@ export default function GenerateTests() {
     }
     if (sourceType !== 'synced' && !codebasePath.trim()) {
       setError(sourceType === 'git' ? 'Enter the GitHub repository URL.' : 'Enter the local codebase path.');
+      return;
+    }
+    if (sourceType === 'git' && !targetBranch.trim()) {
+      setError('Enter the feature branch where the developed code should be pushed.');
       return;
     }
 
@@ -441,11 +456,18 @@ export default function GenerateTests() {
         .filter(Boolean);
       const result = await testsApi.startGeneration([...selectedStoryIds], {
         story_ids: [...selectedStoryIds],
+        custom_feature: sourceType === 'git' ? {
+          title: featureTitle.trim(),
+          description: featureDescription.trim(),
+          acceptance_criteria: featureAcceptance.split(/\r?\n/).map(item => item.trim()).filter(Boolean),
+          project_name: 'Existing repository',
+        } : { title: '', description: '', acceptance_criteria: [] },
         workflow_mode: mode,
         source_type: sourceType,
         path_or_url: codebasePath.trim(),
         github_url: sourceType === 'git' ? codebasePath.trim() : undefined,
         branch: sourceType === 'local' ? 'local' : branch.trim() || 'main',
+        target_branch: sourceType === 'git' ? targetBranch.trim() : branch.trim() || 'main',
         app_url: appUrl.trim() || 'http://localhost:3000',
         develop_code: mode === 'develop_test',
         tech_stack: {
@@ -480,7 +502,8 @@ export default function GenerateTests() {
 
   const openGitHubPush = () => {
     localStorage.setItem(GITHUB_SOURCE_KEY, codebasePath.trim() || developmentArtifact?.path_or_url || '');
-    localStorage.setItem(GITHUB_BRANCH_KEY, branch.trim() || 'main');
+    localStorage.setItem(GITHUB_BASE_BRANCH_KEY, branch.trim() || 'main');
+    localStorage.setItem(GITHUB_BRANCH_KEY, targetBranch.trim() || developmentArtifact?.target_branch || 'feature/custom-feature');
     navigate('/github');
   };
 
@@ -748,11 +771,12 @@ export default function GenerateTests() {
             <WorkflowCard
               selected={sourceType === 'git'}
               icon="logoGithub"
-              title="GitHub Codebase"
-              body="Scan a GitHub repository and prepare changes for a branch/PR."
+              title="Extend an Existing Repo"
+              body="Develop a custom feature against a GitHub repo, generate its tests, and prepare a feature branch."
               onClick={() => {
                 setSourceType('git');
                 setBranch(branch === 'local' ? 'main' : branch);
+                setSaveTarget('github');
               }}
             />
           </EuiFlexItem>
@@ -776,8 +800,8 @@ export default function GenerateTests() {
                   />
                 </EuiFormRow>
               </EuiFlexItem>
-              <EuiFlexItem style={{ minWidth: 140, maxWidth: 180 }}>
-                <EuiFormRow label="Branch" fullWidth>
+              <EuiFlexItem style={{ minWidth: 180, maxWidth: 220 }}>
+                <EuiFormRow label={sourceType === 'git' ? 'Base branch' : 'Branch'} fullWidth>
                   <EuiFieldText
                     fullWidth
                     value={branch}
@@ -786,6 +810,19 @@ export default function GenerateTests() {
                   />
                 </EuiFormRow>
               </EuiFlexItem>
+              {sourceType === 'git' && (
+                <EuiFlexItem style={{ minWidth: 220 }}>
+                  <EuiFormRow label="Target feature branch" helpText="Created from the base branch" fullWidth>
+                    <EuiFieldText
+                      fullWidth
+                      value={targetBranch}
+                      onChange={event => setTargetBranch(event.target.value)}
+                      placeholder="feature/customer-notifications"
+                      disabled={stream.isStreaming}
+                    />
+                  </EuiFormRow>
+                </EuiFlexItem>
+              )}
               <EuiFlexItem style={{ minWidth: 240 }}>
                 <EuiFormRow label="App URL for UI/API execution" fullWidth>
                   <EuiFieldText
@@ -818,10 +855,65 @@ export default function GenerateTests() {
 
         <EuiSpacer size="m" />
 
+        {sourceType === 'git' && (
+          <>
+            <section className="develop-featureBrief">
+              <div className="develop-featureBrief__head">
+                <span className="develop-sectionKicker">Custom feature brief</span>
+                <EuiBadge color="accent">Develop + test + ship</EuiBadge>
+              </div>
+              <EuiText size="s" color="subdued">
+                <p>Describe the new behavior to add to this repository. You can use this instead of creating a user story first.</p>
+              </EuiText>
+              <div className="develop-featureBrief__grid">
+                <EuiFormRow label="Feature name" fullWidth>
+                  <EuiFieldText
+                    fullWidth
+                    value={featureTitle}
+                    onChange={event => setFeatureTitle(event.target.value)}
+                    placeholder="Add saved notification preferences"
+                    disabled={stream.isStreaming}
+                  />
+                </EuiFormRow>
+                <EuiFormRow label="Feature requirement" fullWidth>
+                  <EuiTextArea
+                    fullWidth
+                    rows={4}
+                    value={featureDescription}
+                    onChange={event => setFeatureDescription(event.target.value)}
+                    placeholder="Explain the users, behavior, rules, constraints, and expected outcome."
+                    disabled={stream.isStreaming}
+                  />
+                </EuiFormRow>
+                <EuiFormRow label="Acceptance criteria" helpText="One verifiable outcome per line" fullWidth>
+                  <EuiTextArea
+                    fullWidth
+                    rows={4}
+                    value={featureAcceptance}
+                    onChange={event => setFeatureAcceptance(event.target.value)}
+                    placeholder={'Users can save channel preferences\nSaved preferences are restored on reload\nInvalid values return a clear error'}
+                    disabled={stream.isStreaming}
+                  />
+                </EuiFormRow>
+              </div>
+            </section>
+            <EuiSpacer size="m" />
+          </>
+        )}
+
+        <div className="develop-stackHeading">
+          <div>
+            <EuiTitle size="xs"><h3>Choose a proven tech stack</h3></EuiTitle>
+            <EuiText size="s" color="subdued"><p>Start with one of the most-used combinations, or define your own architecture.</p></EuiText>
+          </div>
+          <EuiBadge color="hollow">{STACK_PRESETS.length - 1} recommended stacks</EuiBadge>
+        </div>
+        <EuiSpacer size="s" />
+
         <div className="develop-stackGrid" aria-label="Choose implementation tech stack">
           {STACK_PRESETS.map((preset, index) => {
             const selected = stackPreset === preset.id;
-            const accents = ['#00BFB3', '#79AAD9', '#A987D1', '#F1D86F'];
+            const accents = ['#00BFB3', '#79AAD9', '#A987D1', '#F1D86F', '#FF9F43'];
             const accent = accents[index % accents.length];
             return (
               <button
@@ -835,12 +927,10 @@ export default function GenerateTests() {
                 <span className="develop-stackCard__check">
                   <QaIcon type={selected ? 'checkInCircleFilled' : 'empty'} size="m" color={selected ? accent : 'var(--text-3)'} />
                 </span>
-                <span className="develop-stackCard__eyebrow">{preset.id === 'custom' ? 'Bring your own' : 'Recommended'}</span>
+                <span className="develop-stackCard__eyebrow">{preset.popularity}</span>
                 <strong>{preset.label}</strong>
                 <span className="develop-stackCard__body">
-                  {preset.id === 'custom'
-                    ? 'Define the exact architecture the agent should generate.'
-                    : `Build with ${preset.frontend}, ${preset.backend}, and ${preset.database}.`}
+                  {preset.description}
                 </span>
                 <span className="develop-stackCard__chips">
                   <span>{preset.frontend || 'Frontend'}</span>
@@ -854,8 +944,8 @@ export default function GenerateTests() {
 
         <EuiSpacer size="m" />
 
-        <div className="develop-configGrid">
-          <div className="develop-configPanel">
+        <div className={`develop-configGrid ${stackPreset !== 'custom' ? 'develop-configGrid--preset' : ''}`}>
+          {stackPreset === 'custom' ? <div className="develop-configPanel">
             <div className="develop-sectionKicker">Implementation stack</div>
             <EuiSpacer size="s" />
             <div className="develop-fieldGrid">
@@ -882,7 +972,14 @@ export default function GenerateTests() {
                 />
               </EuiFormRow>
             </div>
-          </div>
+          </div> : <div className="develop-configPanel develop-selectedStack">
+            <div>
+              <div className="develop-sectionKicker">Selected architecture</div>
+              <strong>{STACK_PRESETS.find(item => item.id === stackPreset)?.label}</strong>
+              <p>{frontendStack} · {backendStack} · {databaseStack}</p>
+            </div>
+            <EuiButtonEmpty size="s" onClick={() => applyStackPreset('custom')}>Customize stack</EuiButtonEmpty>
+          </div>}
 
           <div className="develop-configPanel">
             <div className="develop-sectionKicker">Validation mix</div>
@@ -952,7 +1049,7 @@ export default function GenerateTests() {
               iconType="sortRight"
               onClick={approveAndStart}
               isLoading={starting || stream.isStreaming}
-              disabled={!selectedStoryIds.size || starting || stream.isStreaming}
+              disabled={(!selectedStoryIds.size && !(sourceType === 'git' && featureTitle.trim() && featureDescription.trim())) || starting || stream.isStreaming}
             >
               {stream.isStreaming ? 'Developing and generating' : 'Approve & Start'}
             </EuiButton>
@@ -962,7 +1059,13 @@ export default function GenerateTests() {
         <EuiSpacer size="m" />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
           <DetailBlock title="Selected stories">
-            {selectedStories.length ? (
+            {sourceType === 'git' && featureTitle.trim() && featureDescription.trim() ? (
+              <div style={{ display: 'grid', gap: 5 }}>
+                <strong>{featureTitle}</strong>
+                <span style={{ color: 'var(--text-3)' }}>Custom feature for existing repository</span>
+                {selectedStories.length > 0 && <span>Plus {selectedStories.length} selected stor{selectedStories.length === 1 ? 'y' : 'ies'}</span>}
+              </div>
+            ) : selectedStories.length ? (
               <div style={{ display: 'grid', gap: 6 }}>
                 {selectedStories.slice(0, 5).map(story => (
                   <span key={story.id}>
@@ -990,6 +1093,7 @@ export default function GenerateTests() {
             <div style={{ display: 'grid', gap: 4 }}>
               <span>Source: {sourceType === 'synced' ? 'latest synced codebase' : codebasePath || 'not set'}</span>
               <span>Branch: {sourceType === 'local' ? 'local' : branch || 'main'}</span>
+              {sourceType === 'git' && <span>Push to: {targetBranch || 'not set'}</span>}
               <span>Tests: {uiTestCount} UI, {backendTestCount} backend</span>
               <span>Save: {saveTarget}</span>
             </div>

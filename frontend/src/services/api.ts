@@ -4,6 +4,7 @@ import type {
   DashboardStats, Discrepancy, TestPatch, StoryInput, GenerateStoriesResult,
   ScanTestJob, SavedScreenshot, TestGenerationOptions, DevelopmentArtifact,
   GitHubRepoPlan,
+  Lifecycle,
 } from '../types';
 
 const api = axios.create({ baseURL: '/api' });
@@ -122,6 +123,24 @@ export const executionApi = {
 // Dashboard
 export const dashboardApi = {
   stats: () => api.get<DashboardStats>('/dashboard/stats').then(r => r.data),
+};
+
+// End-to-end Agentic SDLC
+export const lifecycleApi = {
+  list: () => api.get<Lifecycle[]>('/lifecycles/').then(r => r.data),
+  get: (id: string) => api.get<Lifecycle>(`/lifecycles/${id}`).then(r => r.data),
+  create: (body: {
+    title: string; requirement_text: string; project_key: string;
+    source_name?: string; sprint_name?: string; repository?: string; base_branch?: string;
+  }) => api.post<Lifecycle>('/lifecycles/', body).then(r => r.data),
+  decideGate: (id: string, gate: string, decision = 'approved', comment = '', actor = 'Architect') =>
+    api.post<Lifecycle>(`/lifecycles/${id}/gates/${gate}`, { decision, comment, actor }).then(r => r.data),
+  runStage: (id: string, stage: string) =>
+    api.post<Lifecycle>(`/lifecycles/${id}/run/${stage}`).then(r => r.data),
+  updateIssue: (id: string, key: string, patch: Record<string, unknown>) =>
+    api.patch<Lifecycle>(`/lifecycles/${id}/issues/${key}`, patch).then(r => r.data),
+  configureRepository: (id: string, repository: string, base_branch: string, target_branch: string) =>
+    api.post<Lifecycle>(`/lifecycles/${id}/repository`, { repository, base_branch, target_branch }).then(r => r.data),
 };
 
 // Scan & Test

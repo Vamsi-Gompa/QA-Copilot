@@ -1,0 +1,9 @@
+.git
+.agents
+.claude
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+**/dist
+*.log
+corp_cacert.pem

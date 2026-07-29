@@ -5,6 +5,8 @@ import warnings
 # ── Corporate TLS fix: export Windows trust store → PEM bundle ────────────────
 # Must run before any SDK imports so REQUESTS_CA_BUNDLE is set in time.
 def _export_windows_ca_bundle():
+    if not hasattr(ssl, "enum_certificates"):
+        return None
     path = os.path.join(os.path.expanduser('~'), 'corp_cacert.pem')
     pem = []
     for store in ('ROOT', 'CA'):
@@ -16,8 +18,9 @@ def _export_windows_ca_bundle():
     return path
 
 _bundle = _export_windows_ca_bundle()
-os.environ['REQUESTS_CA_BUNDLE'] = _bundle
-os.environ['SSL_CERT_FILE'] = _bundle
+if _bundle:
+    os.environ['REQUESTS_CA_BUNDLE'] = _bundle
+    os.environ['SSL_CERT_FILE'] = _bundle
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -39,7 +42,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 load_dotenv()
 
 from services.storage import init_storage
-from routers import stories, codebase, tests, execution, github, dashboard, scan_test
+from routers import stories, codebase, tests, execution, github, dashboard, scan_test, lifecycle
+from controllers import claim_controller
 
 
 @asynccontextmanager
@@ -72,6 +76,12 @@ app.include_router(execution.router, prefix="/api/execution", tags=["Execution"]
 app.include_router(github.router, prefix="/api/github", tags=["GitHub"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(scan_test.router, prefix="/api/scan-test", tags=["Scan & Test"])
+app.include_router(lifecycle.router, prefix="/api/lifecycles", tags=["Agentic SDLC"])
+app.include_router(
+    claim_controller.router,
+    prefix="/api/claims",
+    tags=["Claim Adjudication"],
+)
 
 SCREENSHOTS_DIR = Path(__file__).parent / "data" / "screenshots"
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)

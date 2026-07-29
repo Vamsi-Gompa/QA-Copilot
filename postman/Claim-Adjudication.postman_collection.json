@@ -1,0 +1,115 @@
+{
+  "info": {
+    "_postman_id": "f2490906-a7ba-46b5-9f6e-2dd42e94b017",
+    "name": "Claim Adjudication REST Modernization",
+    "description": "Approved, duplicate, eligibility failure, and validation cases for POST /api/claims/adjudicate.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8001"
+    }
+  ],
+  "item": [
+    {
+      "name": "1 - Approved claim",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"claim_id\":\"CLM-NEW-001\",\"member_id\":\"MBR-001\",\"provider_id\":\"PRV-01\",\"service_date\":\"2026-07-01\",\"procedure_code\":\"99214\",\"amount\":140.50}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/claims/adjudicate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "claims", "adjudicate"]
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+            "pm.test('Approved', () => pm.expect(pm.response.json().decision).to.eql('APPROVED'));"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "2 - Duplicate claim ID",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"claim_id\":\"CLM-1001\",\"member_id\":\"MBR-001\",\"provider_id\":\"PRV-01\",\"service_date\":\"2026-07-01\",\"procedure_code\":\"99214\",\"amount\":140.50}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/claims/adjudicate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "claims", "adjudicate"]
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+            "pm.test('Duplicate', () => pm.expect(pm.response.json().decision).to.eql('DUPLICATE'));"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "3 - Eligibility failure",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"claim_id\":\"CLM-NEW-003\",\"member_id\":\"MBR-004\",\"provider_id\":\"PRV-03\",\"service_date\":\"2026-07-01\",\"procedure_code\":\"93000\",\"amount\":70.00}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/claims/adjudicate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "claims", "adjudicate"]
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+            "pm.test('Eligibility reason', () => { const b = pm.response.json(); pm.expect(b.decision).to.eql('REJECTED'); pm.expect(b.reason_codes).to.include('MEMBER_NOT_ELIGIBLE'); });"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "4 - Invalid zero amount",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"claim_id\":\"CLM-NEW-004\",\"member_id\":\"MBR-001\",\"provider_id\":\"PRV-01\",\"service_date\":\"2026-07-01\",\"procedure_code\":\"99214\",\"amount\":0}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/claims/adjudicate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "claims", "adjudicate"]
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('HTTP 422', () => pm.response.to.have.status(422));"
+          ]
+        }
+      }]
+    }
+  ]
+}

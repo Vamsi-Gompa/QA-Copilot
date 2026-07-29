@@ -183,7 +183,8 @@ USER STORIES:
 CODEBASE SOURCE:
 - source_type: {options.get("source_type", "synced")}
 - path_or_url: {options.get("path_or_url") or options.get("github_url") or "latest synced codebase"}
-- branch: {options.get("branch", "main")}
+- base_branch: {options.get("branch", "main")}
+- target_branch: {options.get("target_branch", "feature/ai-developed-code")}
 - app_url: {app_url}
 
 SYNCED CODEBASE CONTEXT:
@@ -238,6 +239,7 @@ def _save_development_files(job_id: str, files: List[dict], options: Dict[str, A
         "source_type": options.get("source_type", "synced"),
         "path_or_url": options.get("path_or_url") or options.get("github_url") or "",
         "branch": options.get("branch", "main"),
+        "target_branch": options.get("target_branch", "feature/ai-developed-code"),
         "save_target": options.get("save_target", "local"),
     }
     storage.save_development_artifact(job_id, artifact)

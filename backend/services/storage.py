@@ -18,6 +18,7 @@ _store: Dict[str, Any] = {
     "scan_cache": {},
     "github_config": None,
     "development_artifacts": {},
+    "lifecycles": {},
     "activity_log": [],
 }
 
@@ -32,6 +33,7 @@ def init_storage():
                 saved = json.load(f)
                 _store.update(saved)
                 _store.setdefault("scan_cache", {})
+                _store.setdefault("lifecycles", {})
                 _mark_stale_execution_jobs_failed()
         except Exception:
             pass
@@ -177,6 +179,17 @@ def get_github_config() -> Optional[dict]:
 def save_github_config(config: dict):
     with _lock:
         _store["github_config"] = config
+        _persist()
+
+
+# End-to-end SDLC lifecycles
+def get_lifecycles() -> Dict[str, dict]:
+    return _store.setdefault("lifecycles", {})
+
+
+def save_lifecycle(lifecycle: dict):
+    with _lock:
+        _store.setdefault("lifecycles", {})[lifecycle["id"]] = lifecycle
         _persist()
 
 

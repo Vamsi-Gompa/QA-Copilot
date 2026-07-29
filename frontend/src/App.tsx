@@ -10,6 +10,7 @@ import GenerateTests from './pages/GenerateTests';
 import RunTests from './pages/RunTests';
 import GitHubPush from './pages/GitHubPush';
 import ScanAndTest from './pages/ScanAndTest';
+import LifecycleWorkspace from './pages/LifecycleWorkspace';
 
 export type ThemeMode = 'dark' | 'light';
 
@@ -39,6 +40,7 @@ export default function App() {
         <AppLayout theme={theme} onToggleTheme={toggleTheme}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/lifecycle" element={<LifecycleWorkspace />} />
             <Route path="/stories" element={<UploadStories />} />
             <Route path="/codebase" element={<SyncCodebase />}/>
             <Route path="/generate" element={<GenerateTests />} />

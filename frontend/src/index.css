@@ -1784,13 +1784,13 @@ h1, h2, h3, h4 {
 /* Develop & Test professional workspace */
 .develop-stackGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
 }
 
 .develop-stackCard {
   position: relative;
-  min-height: 172px;
+  min-height: 188px;
   padding: 16px;
   border: 1px solid var(--border-dim);
   border-radius: 8px;
@@ -1800,6 +1800,44 @@ h1, h2, h3, h4 {
   cursor: pointer;
   overflow: hidden;
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.develop-stackHeading,
+.develop-featureBrief__head,
+.develop-selectedStack {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.develop-stackHeading h3,
+.develop-stackHeading p,
+.develop-featureBrief p,
+.develop-selectedStack p {
+  margin: 0;
+}
+
+.develop-stackHeading p,
+.develop-featureBrief p {
+  margin-top: 4px;
+}
+
+.develop-featureBrief {
+  padding: 16px;
+  border: 1px solid rgba(121, 170, 217, 0.38);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(121, 170, 217, 0.1), transparent 48%),
+    var(--surface-2);
+}
+
+.develop-featureBrief__grid {
+  display: grid;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(280px, 1.3fr) minmax(260px, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+  align-items: start;
 }
 
 .develop-stackCard::before {
@@ -1883,11 +1921,30 @@ h1, h2, h3, h4 {
   gap: 12px;
 }
 
+.develop-configGrid--preset {
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.8fr);
+}
+
 .develop-configPanel {
   padding: 14px;
   border: 1px solid var(--border-dim);
   border-radius: 8px;
   background: var(--surface-2);
+}
+
+.develop-selectedStack {
+  min-height: 94px;
+}
+
+.develop-selectedStack strong {
+  color: var(--text-1);
+  font-size: 15px;
+}
+
+.develop-selectedStack p {
+  margin-top: 5px;
+  color: var(--text-2);
+  font-size: 12px;
 }
 
 .develop-fieldGrid {
@@ -1982,6 +2039,8 @@ h1, h2, h3, h4 {
 
 @media (max-width: 980px) {
   .develop-configGrid,
+  .develop-configGrid--preset,
+  .develop-featureBrief__grid,
   .develop-fieldGrid,
   .develop-testMix {
     grid-template-columns: 1fr;
