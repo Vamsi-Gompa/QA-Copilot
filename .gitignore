@@ -1,0 +1,51 @@
+# Environment files
+**/.env
+**/.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.pyre
+
+# Node / frontend
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+
+# Logs and runtime artifacts
+*.log
+*.err.log
+*.run.log
+*.run.err.log
+backend.log
+backend.err.log
+backend.run.log
+backend.run.err.log
+frontend.log
+frontend.err.log
+frontend.run.log
+frontend.run.err.log
+
+# Local / generated data
+backend/data/exports/
+backend/data/screenshots/
+backend/data/store.json
+corp_cacert.pem
+
+# Editor / tool folders
+.claude/
+.agents/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
