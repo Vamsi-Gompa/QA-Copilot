@@ -13,6 +13,28 @@ The governing principle is:
 > Agents prepare and recommend; named humans review, decide, and remain
 > accountable.
 
+## Human involvement summary
+
+These are estimated PoC effort shares, not production measurements.
+
+| Stage | Human | Automated |
+|---|---:|---:|
+| Requirement intake | 40% | 60% |
+| Context and clarification | 25% | 75% |
+| BRD creation and approval | 45% | 55% |
+| Backlog and sprint planning | 50% | 50% |
+| Code planning | 45% | 55% |
+| Implementation | 30% | 70% |
+| Code review | 50% | 50% |
+| Sanity testing | 35% | 65% |
+| Release and QA handoff | 65% | 35% |
+| **Overall average** | **43%** | **57%** |
+
+**Summary:** The framework automates about **57%** of repeatable work while
+humans contribute about **43%**, mainly through clarification, approvals,
+review, risk acceptance, and release decisions. Human accountability at the
+BRD, code-plan, and release gates remains **100%**.
+
 ## Human involvement across the lifecycle
 
 | SDLC stage | Automation contribution | Required human involvement | Primary owner | Evidence retained |
